@@ -88,6 +88,9 @@ import * as THREE from "three";
     const exportCutlistBtn = document.getElementById("exportCutlistBtn");
     const importYamlFile = document.getElementById("importYamlFile");
     const projectionRadios = document.querySelectorAll('input[name="projectionMode"]');
+    const resetBtn = document.getElementById("resetBtn");
+
+    const STORAGE_KEY = "k-frame-planner-state";
 
     function numberFromInput(input) {
       const min = Number(input.min);
@@ -535,6 +538,67 @@ import * as THREE from "three";
       stopDrag();
     }
 
+    function saveToStorage() {
+      try {
+        const data = {
+          w: Number(inputs.w.value),
+          d: Number(inputs.d.value),
+          h: Number(inputs.h.value),
+          mw: Number(inputs.mw.value),
+          mt: Number(inputs.mt.value),
+          bt: Number(inputs.bt.value),
+          shelfYPositions: state.shelfYPositions.map((y) => Math.round(y)),
+          shelfBoardEnabled: [...state.shelfBoardEnabled],
+          cameraMode: state.cameraMode
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (_) {}
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data.w !== undefined) inputs.w.value = String(data.w);
+        if (data.d !== undefined) inputs.d.value = String(data.d);
+        if (data.h !== undefined) inputs.h.value = String(data.h);
+        if (data.mw !== undefined) inputs.mw.value = String(data.mw);
+        if (data.mt !== undefined) inputs.mt.value = String(data.mt);
+        if (data.bt !== undefined) inputs.bt.value = String(data.bt);
+        if (Array.isArray(data.shelfYPositions) && data.shelfYPositions.length >= MIN_SHELVES) {
+          state.shelfYPositions = data.shelfYPositions;
+        }
+        if (Array.isArray(data.shelfBoardEnabled)) {
+          state.shelfBoardEnabled = data.shelfBoardEnabled;
+        }
+        if (data.cameraMode === "orthographic" || data.cameraMode === "perspective") {
+          state.cameraMode = data.cameraMode;
+          projectionRadios.forEach((r) => { r.checked = r.value === data.cameraMode; });
+        }
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function resetToDefaults() {
+      localStorage.removeItem(STORAGE_KEY);
+      inputs.w.value = "800";
+      inputs.d.value = "600";
+      inputs.h.value = "1000";
+      inputs.mw.value = "40";
+      inputs.mt.value = "40";
+      inputs.bt.value = "12";
+      state.shelfYPositions = [];
+      state.shelfBoardEnabled = [];
+      state.cameraMode = "perspective";
+      projectionRadios.forEach((r) => { r.checked = r.value === "perspective"; });
+      applyCameraMode("perspective");
+      state.lastConfigKey = "";
+      applyAll();
+    }
+
     function applyAll() {
       const cfg = getConfig();
       const material = new F3_Material(cfg.mw, cfg.mt);
@@ -548,6 +612,7 @@ import * as THREE from "three";
         buildScene(cfg);
         state.lastConfigKey = nextConfigKey;
       }
+      saveToStorage();
     }
 
     function toPortableData() {
@@ -625,8 +690,12 @@ import * as THREE from "three";
       state.renderer.render(state.scene, state.camera);
     }
 
+    loadFromStorage();
     setupThree();
     Object.values(inputs).forEach((el) => el.addEventListener("blur", applyAll));
+    resetBtn.addEventListener("click", () => {
+      if (confirm("すべてのパラメータを初期値に戻しますか？")) resetToDefaults();
+    });
     projectionRadios.forEach((radio) => {
       radio.addEventListener("change", (event) => {
         const target = event.target;
