@@ -89,6 +89,7 @@ import * as THREE from "three";
     const importYamlFile = document.getElementById("importYamlFile");
     const projectionRadios = document.querySelectorAll('input[name="projectionMode"]');
     const resetBtn = document.getElementById("resetBtn");
+    const homeCameraBtn = document.getElementById("homeCameraBtn");
 
     const STORAGE_KEY = "k-frame-planner-state";
 
@@ -371,7 +372,7 @@ import * as THREE from "three";
         `;
         cutRows.appendChild(tr);
       });
-      totalEl.textContent = `総必要長さ: ${result.totalLength.toLocaleString()} mm`;
+      totalEl.textContent = `角材トータル: ${result.totalLength.toLocaleString()} mm`;
     }
 
     function buildScene(config) {
@@ -514,8 +515,8 @@ import * as THREE from "three";
     function applyCameraMode(mode) {
       const prevCamera = state.camera;
       const prevControls = state.controls;
-      const prevPosition = prevCamera ? prevCamera.position.clone() : new THREE.Vector3(1000, 900, 1200);
-      const prevTarget = prevControls ? prevControls.target.clone() : new THREE.Vector3(0, 400, 0);
+      const prevPosition = prevCamera ? prevCamera.position.clone() : INITIAL_CAMERA_POS.clone();
+      const prevTarget = prevControls ? prevControls.target.clone() : INITIAL_CAMERA_TARGET.clone();
 
       state.cameraMode = mode;
       if (mode === "perspective") {
@@ -849,9 +850,19 @@ import * as THREE from "three";
       state.renderer.render(state.scene, state.camera);
     }
 
+    const INITIAL_CAMERA_POS = new THREE.Vector3(2200, 1800, 2600);
+    const INITIAL_CAMERA_TARGET = new THREE.Vector3(0, 400, 0);
+
+    function resetCamera() {
+      state.camera.position.copy(INITIAL_CAMERA_POS);
+      state.controls.target.copy(INITIAL_CAMERA_TARGET);
+      state.controls.update();
+    }
+
     loadFromStorage();
     setupThree();
     Object.values(inputs).forEach((el) => el.addEventListener("blur", applyAll));
+    homeCameraBtn.addEventListener("click", resetCamera);
     resetBtn.addEventListener("click", () => {
       showConfirmDialog("データリセット", "すべてのパラメータを初期値に戻しますか？", resetToDefaults);
     });
@@ -947,7 +958,7 @@ import * as THREE from "three";
         }
       });
       lines.push("");
-      lines.push(`総必要長さ: ${result.totalLength.toLocaleString()} mm`);
+      lines.push(`角材トータル: ${result.totalLength.toLocaleString()} mm`);
       const text = lines.join("\n");
       copyTextToClipboard(text)
         .then(() => {
