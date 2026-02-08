@@ -64,7 +64,7 @@ import * as THREE from "three";
       raycaster: new THREE.Raycaster(),
       mouse: new THREE.Vector2(),
       lastConfigKey: "",
-      cameraMode: "orthographic"
+      cameraMode: "perspective"
     };
     const MIN_SHELVES = 1;
     const MAX_SHELVES = 10;
