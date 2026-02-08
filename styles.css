@@ -1151,6 +1151,185 @@ tbody td:last-child {
 
 
 /* ════════════════════════════════════════════════════════════
+   DIALOG — Common Modal
+   ════════════════════════════════════════════════════════════ */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 6, 4, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: dialogFadeIn 0.2s var(--ease-out) both;
+}
+
+.dialog-overlay[hidden] {
+  display: none;
+}
+
+@keyframes dialogFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dialog-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 10px;
+  box-shadow:
+    0 16px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(200, 168, 78, 0.06);
+  width: 90%;
+  max-width: 520px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dialogSlideIn 0.25s var(--ease-out) both;
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dialog-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 18px 22px 0;
+  letter-spacing: 0.02em;
+}
+
+.dialog-body {
+  padding: 14px 22px 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Message text in confirm dialog */
+.dialog-body .dialog-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Readonly text display (CutList Copy, YAML Export) */
+.dialog-body textarea {
+  width: 100%;
+  min-height: 180px;
+  max-height: 50vh;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.6;
+  resize: vertical;
+  box-shadow: var(--shadow-carved);
+  -webkit-font-smoothing: antialiased;
+}
+
+.dialog-body textarea:focus {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow:
+    var(--shadow-carved),
+    0 0 0 2px var(--brass-glow);
+}
+
+.dialog-body textarea::selection {
+  background: var(--brass);
+  color: var(--bg-deep);
+}
+
+/* Status message under textarea */
+.dialog-body .dialog-status {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-align: right;
+}
+
+.dialog-body .dialog-status.success {
+  color: var(--brass);
+}
+
+.dialog-body .dialog-status.error {
+  color: #c06050;
+}
+
+/* Actions row */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 22px 18px;
+}
+
+.dialog-actions button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  padding: 9px 22px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.2s,
+    color 0.15s;
+}
+
+.dialog-actions button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+/* Primary action button (confirm, import, etc.) */
+.dialog-actions button.dialog-primary {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: var(--bg-deep);
+  font-weight: 600;
+}
+
+.dialog-actions button.dialog-primary:hover {
+  background: var(--brass-light);
+  border-color: var(--brass-light);
+}
+
+/* Danger action button (reset) */
+.dialog-actions button.dialog-danger {
+  background: transparent;
+  border-color: #c06050;
+  color: #c06050;
+}
+
+.dialog-actions button.dialog-danger:hover {
+  background: rgba(192, 96, 80, 0.12);
+}
+
+
+/* ════════════════════════════════════════════════════════════
    UTILITY & ANIMATION
    ════════════════════════════════════════════════════════════ */
 

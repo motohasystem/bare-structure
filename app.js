@@ -92,6 +92,165 @@ import * as THREE from "three";
 
     const STORAGE_KEY = "k-frame-planner-state";
 
+    // ── Dialog API ──
+    const dialogOverlay = document.getElementById("dialogOverlay");
+    const dialogTitle = document.getElementById("dialogTitle");
+    const dialogBody = document.getElementById("dialogBody");
+    const dialogActions = document.getElementById("dialogActions");
+
+    function closeDialog() {
+      dialogOverlay.hidden = true;
+      dialogBody.innerHTML = "";
+      dialogActions.innerHTML = "";
+    }
+
+    function showDialog({ title, buildBody, buttons }) {
+      dialogTitle.textContent = title;
+      dialogBody.innerHTML = "";
+      dialogActions.innerHTML = "";
+      if (buildBody) buildBody(dialogBody);
+      buttons.forEach((btn) => {
+        const el = document.createElement("button");
+        el.textContent = btn.label;
+        if (btn.className) el.className = btn.className;
+        el.addEventListener("click", () => {
+          if (btn.onClick) btn.onClick();
+          else closeDialog();
+        });
+        dialogActions.appendChild(el);
+      });
+      dialogOverlay.hidden = false;
+      // Focus first primary/danger button, or last button
+      const focusTarget = dialogActions.querySelector(".dialog-primary, .dialog-danger")
+        || dialogActions.lastElementChild;
+      if (focusTarget) focusTarget.focus();
+    }
+
+    function showConfirmDialog(title, message, onConfirm) {
+      showDialog({
+        title,
+        buildBody(body) {
+          const p = document.createElement("div");
+          p.className = "dialog-message";
+          p.textContent = message;
+          body.appendChild(p);
+        },
+        buttons: [
+          { label: "キャンセル", onClick: closeDialog },
+          { label: "リセット", className: "dialog-danger", onClick() { closeDialog(); onConfirm(); } }
+        ]
+      });
+    }
+
+    function saveTextAsFile(text, filename) {
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function showTextDialog(title, text, statusMessage, saveFilename) {
+      showDialog({
+        title,
+        buildBody(body) {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.readOnly = true;
+          ta.spellcheck = false;
+          body.appendChild(ta);
+          if (statusMessage) {
+            const s = document.createElement("div");
+            s.className = "dialog-status success";
+            s.textContent = statusMessage;
+            body.appendChild(s);
+          }
+          requestAnimationFrame(() => { ta.select(); });
+        },
+        buttons: [
+          ...(saveFilename ? [{
+            label: "ファイル保存",
+            className: "dialog-primary",
+            onClick() { saveTextAsFile(text, saveFilename); }
+          }] : []),
+          { label: "閉じる", onClick: closeDialog }
+        ]
+      });
+    }
+
+    function showImportDialog(title, onImport) {
+      let statusEl = null;
+      let ta = null;
+      showDialog({
+        title,
+        buildBody(body) {
+          ta = document.createElement("textarea");
+          ta.placeholder = "YAMLテキストをここに貼り付けてください...";
+          ta.spellcheck = false;
+          body.appendChild(ta);
+          statusEl = document.createElement("div");
+          statusEl.className = "dialog-status";
+          body.appendChild(statusEl);
+          requestAnimationFrame(() => ta.focus());
+        },
+        buttons: [
+          {
+            label: "ファイル読込",
+            onClick() {
+              const fileInput = document.createElement("input");
+              fileInput.type = "file";
+              fileInput.accept = ".yaml,.yml,text/yaml,text/x-yaml";
+              fileInput.addEventListener("change", async () => {
+                const file = fileInput.files?.[0];
+                if (!file) return;
+                try {
+                  ta.value = await file.text();
+                  statusEl.className = "dialog-status success";
+                  statusEl.textContent = `${file.name} を読み込みました`;
+                } catch (error) {
+                  statusEl.className = "dialog-status error";
+                  statusEl.textContent = "ファイルの読み込みに失敗しました。";
+                }
+              });
+              fileInput.click();
+            }
+          },
+          { label: "キャンセル", onClick: closeDialog },
+          {
+            label: "インポート",
+            className: "dialog-primary",
+            onClick() {
+              const text = ta.value.trim();
+              if (!text) {
+                statusEl.className = "dialog-status error";
+                statusEl.textContent = "テキストが入力されていません。";
+                return;
+              }
+              try {
+                const parsed = load(text);
+                closeDialog();
+                onImport(parsed);
+              } catch (error) {
+                statusEl.className = "dialog-status error";
+                statusEl.textContent = error instanceof Error ? error.message : String(error);
+              }
+            }
+          }
+        ]
+      });
+    }
+
+    dialogOverlay.addEventListener("click", (e) => {
+      if (e.target === dialogOverlay) closeDialog();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !dialogOverlay.hidden) closeDialog();
+    });
+
     function numberFromInput(input) {
       const min = Number(input.min);
       const max = Number(input.max);
@@ -694,7 +853,7 @@ import * as THREE from "three";
     setupThree();
     Object.values(inputs).forEach((el) => el.addEventListener("blur", applyAll));
     resetBtn.addEventListener("click", () => {
-      if (confirm("すべてのパラメータを初期値に戻しますか？")) resetToDefaults();
+      showConfirmDialog("データリセット", "すべてのパラメータを初期値に戻しますか？", resetToDefaults);
     });
     projectionRadios.forEach((radio) => {
       radio.addEventListener("change", (event) => {
@@ -745,30 +904,21 @@ import * as THREE from "three";
       const yamlText = dump(toPortableData(), { lineWidth: 120 });
       copyTextToClipboard(yamlText)
         .then(() => {
-          alert("YAMLをクリップボードにコピーしました。");
+          showTextDialog("YAML Export", yamlText, "クリップボードにコピーしました", "frame-planner.yaml");
         })
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : String(error);
-          alert(`コピーに失敗しました: ${message}`);
+        .catch(() => {
+          showTextDialog("YAML Export", yamlText, null, "frame-planner.yaml");
         });
     });
     importYamlBtn.addEventListener("click", () => {
-      importYamlFile.value = "";
-      importYamlFile.click();
-    });
-    importYamlFile.addEventListener("change", async (event) => {
-      const input = event.target;
-      if (!(input instanceof HTMLInputElement)) return;
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const parsed = load(text);
-        applyImportedData(parsed);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        alert(`YAMLの読み込みに失敗しました: ${message}`);
-      }
+      showImportDialog("YAML Import", (parsed) => {
+        try {
+          applyImportedData(parsed);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          showTextDialog("Import エラー", message, null);
+        }
+      });
     });
     exportCutlistBtn.addEventListener("click", () => {
       const cfg = getConfig();
@@ -798,13 +948,13 @@ import * as THREE from "three";
       });
       lines.push("");
       lines.push(`総必要長さ: ${result.totalLength.toLocaleString()} mm`);
-      copyTextToClipboard(lines.join("\n"))
+      const text = lines.join("\n");
+      copyTextToClipboard(text)
         .then(() => {
-          alert("カットリストをクリップボードにコピーしました。");
+          showTextDialog("CutList Copy", text, "クリップボードにコピーしました", "cutlist.txt");
         })
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : String(error);
-          alert(`コピーに失敗しました: ${message}`);
+        .catch(() => {
+          showTextDialog("CutList Copy", text, null, "cutlist.txt");
         });
     });
     applyAll();
